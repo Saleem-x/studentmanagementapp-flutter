@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:student_management/screens/homescreen.dart';
 import 'package:student_management/screens/showrow.dart';
 
+// ignore: must_be_immutable
 class Detailedview extends StatelessWidget {
   String name;
   String age;

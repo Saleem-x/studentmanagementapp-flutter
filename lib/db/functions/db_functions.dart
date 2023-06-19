@@ -1,32 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hive_flutter/adapters.dart';
+import 'package:student_management/bloc/home/homescreen_bloc.dart';
+import 'package:student_management/bloc/home/homescreen_event.dart';
 import 'package:student_management/db/models/db_models.dart';
 
-ValueNotifier<List<StudentModel>> studentlistnotifier = ValueNotifier([]);
+List<StudentModel> studentlistnotifier = [];
 List<StudentModel> studenList = [];
 
-Future<void> addStudent(StudentModel value) async {
-  final _db = await Hive.openBox<StudentModel>('student.db');
-  await _db.put(value.id, value);
+Future<void> addStudent(StudentModel value, BuildContext context) async {
+  final db = await Hive.openBox<StudentModel>('student.db');
+  await db.add(value);
+  //! calling add student event
+  // ignore: use_build_context_synchronously
+  BlocProvider.of<HomeScreenBloc>(context).add(AddStudent(value: value));
 }
 
-Future<void> getalldata() async {
-  final _db = await Hive.openBox<StudentModel>('student.db');
-  studentlistnotifier.value.clear();
-  studentlistnotifier.value.addAll(_db.values);
-  studenList.addAll(_db.values);
-  studentlistnotifier.notifyListeners();
+getalldata() async {
+  final db = Hive.box<StudentModel>('student.db');
+  studentlistnotifier.clear();
+  studentlistnotifier.addAll(db.values);
 }
 
-Future<void> deletestudent(StudentModel value) async {
-  final _db = await Hive.openBox<StudentModel>('student.db');
-  await _db.delete(value.id);
+deletestudent(BuildContext context, int indx) async {
+  final studentDB = Hive.box<StudentModel>('student.db');
+  // ignore: use_build_context_synchronously
+  //! calling delete student event
+  BlocProvider.of<HomeScreenBloc>(context).add(DeleteStudent(index: indx));
+  await studentDB.deleteAt(indx);
   getalldata();
 }
 
-Future<void> updateSstudent(StudentModel value) async {
-  final db = await Hive.openBox<StudentModel>('student.db');
-  final student = db.get(value.id);
+updateSstudent(StudentModel value, BuildContext context, int idx) async {
+  final db = Hive.box<StudentModel>('student.db');
+  final student = db.getAt(idx);
   if (student?.name != value.name) {
     student?.name = value.name;
   }
@@ -42,7 +49,10 @@ Future<void> updateSstudent(StudentModel value) async {
   if (student?.imgpath != value.imgpath) {
     student?.imgpath = value.imgpath;
   }
-  await db.put(value.id, student!);
-  studentlistnotifier.notifyListeners();
+  await db.putAt(idx, student!);
+  //! calling update student event
+  // ignore: use_build_context_synchronously
+  BlocProvider.of<HomeScreenBloc>(context)
+      .add(EditStudent(index: idx, value: student));
   getalldata();
 }

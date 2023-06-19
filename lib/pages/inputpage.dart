@@ -1,32 +1,37 @@
-import 'dart:io';
+import 'dart:developer';
+ import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:student_management/bloc/inputpage/input_page_bloc.dart';
+import 'package:student_management/bloc/inputpage/input_page_event.dart';
+import 'package:student_management/bloc/inputpage/input_page_state.dart';
 import 'package:student_management/db/functions/db_functions.dart';
 import 'package:student_management/db/models/db_models.dart';
 import 'package:student_management/widgets/inputfield.dart';
 
-class InputPage extends StatefulWidget {
-  const InputPage({super.key});
+// ignore: must_be_immutable
+class InputPage extends StatelessWidget {
+  InputPage({super.key});
 
-  @override
-  State<InputPage> createState() => _InputPageState();
-}
-
-class _InputPageState extends State<InputPage> {
-  File? _image;
+  String _image = 'img';
 
   final _nameController = TextEditingController();
   final _ageController = TextEditingController();
   final _stdController = TextEditingController();
   final _phoneController = TextEditingController();
 
-  final form_key = GlobalKey<FormState>();
+  final formkey = GlobalKey<FormState>();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Enter details'),
+        iconTheme: const IconThemeData(color: Colors.white),
+        title: const Text(
+          'Enter details',
+          style: TextStyle(color: Colors.white),
+        ),
       ),
       body: SafeArea(
         child: Padding(
@@ -34,25 +39,31 @@ class _InputPageState extends State<InputPage> {
           child: Padding(
             padding: const EdgeInsets.all(8),
             child: Form(
-              key: form_key,
+              key: formkey,
               child: ListView(
                 children: [
                   GestureDetector(
-                    onTap: () => pickImage(),
-                    child: CircleAvatar(
-                      backgroundColor: Colors.black,
-                      radius: 60,
-                      child: ClipOval(
-                        child: SizedBox.fromSize(
-                          size: const Size.fromRadius(60),
-                          child: (_image != null)
-                              ? Image.file(
-                                  _image!,
-                                  fit: BoxFit.cover,
-                                )
-                              : Image.asset('assets/images/person.jpg'),
-                        ),
-                      ),
+                    onTap: () => pickImage(context),
+                    //! building
+                    child: BlocBuilder<InputPageBloc, InputPageState>(
+                      builder: (context, state) {
+                        log('hello');
+                        return CircleAvatar(
+                          backgroundColor: Colors.black,
+                          radius: 60,
+                          child: ClipOval(
+                            child: SizedBox.fromSize(
+                              size: const Size.fromRadius(60),
+                              child: (_image == 'img')
+                                  ? Image.asset('assets/images/person.jpg')
+                                  : Image.file(
+                                      File(state.imagepath!),
+                                      fit: BoxFit.cover,
+                                    ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(
@@ -80,8 +91,8 @@ class _InputPageState extends State<InputPage> {
                         child: ElevatedButton(
                             child: const Text('submit'),
                             onPressed: () {
-                              if (form_key.currentState!.validate()) {
-                                form_key.currentState!.save();
+                              if (formkey.currentState!.validate()) {
+                                formkey.currentState!.save();
                                 StudentModel student = StudentModel(
                                     name: _nameController.text,
                                     age: _ageController.text,
@@ -90,8 +101,9 @@ class _InputPageState extends State<InputPage> {
                                     id: DateTime.now()
                                         .millisecondsSinceEpoch
                                         .toString(),
-                                    imgpath: _image?.path ?? 'no-img')  ;
-                                addStudent(student);
+                                    imgpath:
+                                        _image == 'img' ? 'no-img' : _image);
+                                addStudent(student, context);
                                 Navigator.of(context).pop();
                                 getalldata();
                               }
@@ -108,13 +120,18 @@ class _InputPageState extends State<InputPage> {
     );
   }
 
-  Future<void> pickImage() async {
+//? image picking function ->
+
+  Future<void> pickImage(BuildContext context) async {
     final imagePicked =
         await ImagePicker().pickImage(source: ImageSource.gallery);
     if (imagePicked != null) {
-      setState(() {
-        _image = File(imagePicked.path);
-      });
+      _image = imagePicked.path;
+      //! -> read the updated event and transfer it to the bloc to change state
+      // ignore: use_build_context_synchronously
+      BlocProvider.of<InputPageBloc>(context)
+          .add(PickImageEvent(imagepath: imagePicked.path));
+      log(_image);
     }
   }
 }
